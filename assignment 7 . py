@@ -1,0 +1,114 @@
+"""
+Module 12: Building Database Apps with Postgresql & Python
+Make sure:
+- Postgresql server is running
+- Database 'student_db' exists (create with psql or pgAdmin)
+- You have psycopg2-binary installed in your venv:
+    pip install psycopg2-binary
+"""
+
+try:
+    import psycopg2
+except ImportError:
+    print("ERROR: psycopg2 is not installed.")
+    print("Activate your virtual environment and run:")
+    print("    pip install psycopg2-binary")
+    exit(1)
+
+def connect_db():
+    try:
+        conn = psycopg2.connect(
+            dbname="student_db",
+            user="postgres",            # <-- Change this to your DB username
+            password="your_password",   # <-- Change this to your DB password
+            host="localhost",
+            port="5432"
+        )
+        print("Connected to the database.")
+        return conn
+    except Exception as e:
+        print(f"Connection failed: {e}")
+        return None
+
+def create_table():
+    conn = connect_db()
+    if conn is None:
+        print("Cannot create table without DB connection.")
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS students (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100),
+                    marks INT
+                );
+            """)
+            conn.commit()
+            print("Table created successfully.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Failed to create table: {e}")
+    finally:
+        conn.close()
+
+def insert_data(name, marks):
+    conn = connect_db()
+    if conn is None:
+        print("Insert aborted due to DB connection failure.")
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO students (name, marks) VALUES (%s, %s);", (name, marks))
+            conn.commit()
+            print(f"Inserted data: {name}, {marks}")
+    except Exception as e:
+        conn.rollback()
+        print(f"Insert failed: {e}")
+    finally:
+        conn.close()
+
+def fetch_data():
+    conn = connect_db()
+    if conn is None:
+        print("Fetch aborted due to DB connection failure.")
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM students;")
+            rows = cur.fetchall()
+            if not rows:
+                print("No records found.")
+            else:
+                for row in rows:
+                    print(f"ID: {row[0]}, Name: {row[1]}, Marks: {row[2]}")
+    except Exception as e:
+        print(f"Fetch failed: {e}")
+    finally:
+        conn.close()
+
+def user_input():
+    try:
+        name = input("Enter student name: ").strip()
+        marks = int(input("Enter student marks (integer): "))
+        if not name:
+            print("Name cannot be empty.")
+            return
+        insert_data(name, marks)
+        print("New student added successfully.")
+    except ValueError:
+        print("Invalid input for marks. Please enter an integer.")
+    except Exception as e:
+        print(f"User input error: {e}")
+
+def test_insert_and_fetch():
+    print("=== Running test: create table, insert data, fetch data ===")
+    create_table()
+    insert_data("TestUser1", 90)
+    insert_data("TestUser2", 77)
+    fetch_data()
+
+# Uncomment below lines to run the tests directly
+
+# test_insert_and_fetch()
+# user_input()
